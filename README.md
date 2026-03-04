@@ -19,6 +19,13 @@ npm run build
 
 产物目录：`docs/.vitepress/dist/`
 
+## 字体 / 排版（更像书）
+
+默认将正文（`.vp-doc`）改为「宋体/思源宋体」一类的**衬线**字族，以便长文阅读；导航/UI 仍保持无衬线风格。
+
+- 配置位置：`docs/.vitepress/theme/style.css`
+- 推荐安装（可选）：思源宋体（Source Han Serif / Noto Serif CJK），未安装时会自动回退到系统宋体（如 SimSun）
+
 ## 交互功能（读者笔记 / 章节讨论）
 
 本项目的交互功能基于 **GitHub Discussions**，并通过 **Cloudflare Worker** 完成 OAuth 交换与 Discussions 读取缓存代理。
