@@ -3,7 +3,7 @@ import { ref, readonly } from 'vue'
 // ---- Configuration ----
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ''
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || ''
-const STORAGE_NS = (import.meta.env.VITE_GITHUB_REPO_NAME && import.meta.env.VITE_GITHUB_REPO_NAME !== 'CHANGE_ME')
+const STORAGE_NS = import.meta.env.VITE_GITHUB_REPO_NAME
   ? import.meta.env.VITE_GITHUB_REPO_NAME
   : 'book-site'
 const TOKEN_KEY = `${STORAGE_NS}::gh-token`
@@ -39,6 +39,16 @@ function isSafeReturnTo(path: string): boolean {
   return path.startsWith('/') && !path.startsWith('//') && !path.includes('\\') && !path.includes('\n')
 }
 
+function isValidWorkerBaseUrl(value: string): boolean {
+  if (!value) return false
+  try {
+    const u = new URL(value)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function useAuth() {
   function init() {
     // Check for OAuth callback code in URL
@@ -71,7 +81,7 @@ export function useAuth() {
       window.alert('未配置 GitHub OAuth（VITE_GITHUB_CLIENT_ID），暂时无法登录。')
       return
     }
-    if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') {
+    if (!isValidWorkerBaseUrl(WORKER_URL)) {
       console.warn('[auth] missing VITE_WORKER_URL')
       window.alert('未配置 OAuth 后端（VITE_WORKER_URL），暂时无法登录。')
       return
@@ -99,7 +109,7 @@ export function useAuth() {
     localStorage.removeItem(USER_KEY)
     // Revoke GitHub OAuth grant so next login shows the authorization page,
     // allowing the user to switch accounts
-    if (savedToken && WORKER_URL && WORKER_URL !== 'CHANGE_ME') {
+    if (savedToken && isValidWorkerBaseUrl(WORKER_URL)) {
       revokePromise = fetch(`${WORKER_URL}/api/revoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +121,7 @@ export function useAuth() {
   }
 
   async function exchangeCode(code: string) {
-    if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') {
+    if (!isValidWorkerBaseUrl(WORKER_URL)) {
       console.error('[auth] missing VITE_WORKER_URL (cannot exchange OAuth code)')
       return
     }

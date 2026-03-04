@@ -7,9 +7,6 @@ hero:
     - theme: brand
       text: 开始阅读
       link: /chapters/ch01-real-complex
-    - theme: alt
-      text: GitHub
-      link: https://github.com/CHANGE_ME/rudinbook-cn
 
 features:
   - title: 📝 读者笔记

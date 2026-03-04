@@ -12,8 +12,8 @@
 // Configure the target GitHub repo via Worker environment variables.
 // Used for finding Discussions by title.
 function getRepo(env) {
-  const owner = env.REPO_OWNER || env.GITHUB_REPO_OWNER || 'CHANGE_ME'
-  const name = env.REPO_NAME || env.GITHUB_REPO_NAME || 'CHANGE_ME'
+  const owner = env.REPO_OWNER || env.GITHUB_REPO_OWNER || ''
+  const name = env.REPO_NAME || env.GITHUB_REPO_NAME || ''
   return { owner, name }
 }
 const CACHE_TTL = 300 // 5 minutes (shared cache)
@@ -251,7 +251,7 @@ async function fetchDiscussion(token, pagePath, categoryName, knownId, env) {
   }
 
   const { owner, name } = getRepo(env)
-  if (!owner || !name || owner === 'CHANGE_ME' || name === 'CHANGE_ME') {
+  if (!owner || !name) {
     return { discussionId: null, comments: [] }
   }
   const searchQuery = `repo:${owner}/${name} in:title ${JSON.stringify(pagePath)} category:${JSON.stringify(categoryName)}`

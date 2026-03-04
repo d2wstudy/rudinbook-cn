@@ -1,15 +1,24 @@
 import { defineConfig } from 'vitepress'
 import container from 'markdown-it-container'
 
+function normalizeBase(input: string | undefined): string {
+  const base = input || '/'
+  return base.endsWith('/') ? base : `${base}/`
+}
+
+const base = normalizeBase(process.env.VITEPRESS_BASE)
+const githubRepoSlug = process.env.GITHUB_REPOSITORY // "<owner>/<repo>" in GitHub Actions
+const repoUrl = githubRepoSlug ? `https://github.com/${githubRepoSlug}` : undefined
+
 export default defineConfig({
   title: '数学分析原理（Rudin）',
   description: 'Walter Rudin《Principles of Mathematical Analysis》中文整理版',
   lang: 'zh-CN',
   // For GitHub Pages, set `VITEPRESS_BASE=/<repo>/` in CI.
-  base: process.env.VITEPRESS_BASE || '/',
+  base,
 
   head: [
-    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['link', { rel: 'icon', href: `${base}favicon.ico` }],
   ],
 
   themeConfig: {
@@ -42,9 +51,7 @@ export default defineConfig({
         ],
       },
     ],
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/CHANGE_ME/rudinbook-cn' },
-    ],
+    socialLinks: repoUrl ? [{ icon: 'github', link: repoUrl }] : [],
     outline: { level: [2, 3], label: '本页目录' },
     search: { provider: 'local' },
   },

@@ -27,6 +27,21 @@ npm run build
 
 - `WORKER.md`
 
+## 作为开源模板复用（换仓库 / 换一本书）
+
+如果你 fork/复制本仓库用于别的书，**建议只从下面清单开始改**，避免到处翻：
+
+- **交互功能必改**
+  - `worker/wrangler.toml`：填 `[vars] REPO_OWNER` / `REPO_NAME`
+  - `docs/.env.development`、`docs/.env.production`：填 `VITE_GITHUB_CLIENT_ID` / `VITE_WORKER_URL` / `VITE_GITHUB_REPO_OWNER` / `VITE_GITHUB_REPO_NAME`
+- **站点内容常改**
+  - `docs/.vitepress/config.ts`：站点标题、描述、侧边栏章节目录、导航等
+  - `docs/chapters/*`：正文内容
+- **不确定该改哪里时**
+  - 搜索占位符（排除说明文档）：`rg --hidden CHANGE_ME -g'!*.md'`
+
+说明：导航栏右上角的 GitHub 图标链接在 GitHub Pages 工作流中会自动指向当前仓库（读取 GitHub Actions 的 `GITHUB_REPOSITORY` 环境变量），因此通常不需要手动改链接。
+
 快速检查清单：
 
 - GitHub 仓库已开启 Discussions，且存在分类：`Notes` / `Announcements`

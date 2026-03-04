@@ -17,6 +17,11 @@
 | 配置站点侧 OAuth ClientId / Worker 地址 / 仓库信息 | `docs/.env.development`、`docs/.env.production` | `VITE_GITHUB_CLIENT_ID`、`VITE_WORKER_URL`、`VITE_GITHUB_REPO_OWNER`、`VITE_GITHUB_REPO_NAME` |
 | 配置 Worker 的 secrets（不进 Git） | Cloudflare Worker 环境变量（`wrangler secret put`） | `GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET`、`GITHUB_PAT`（可选但强烈建议）等 |
 
+补充：如果你把本仓库当作开源模板复用，想快速定位“哪些文件里还有占位符需要填”，可以直接搜索：
+
+- `rg --hidden CHANGE_ME`
+- `rg --hidden CHANGE_ME -g'!*.md'`（推荐：结果更“干净”）
+
 ---
 
 ## 1. GitHub 仓库侧准备（一次性）
@@ -228,4 +233,3 @@ npm run dev
 - 确认用户已登录（右上角显示头像）
 - 确认仓库 Discussions 分类允许用户发言
 - 打开浏览器控制台，看 GitHub GraphQL 返回的错误信息（可能是权限/速率限制）
-

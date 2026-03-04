@@ -5,6 +5,16 @@ const REPO_NAME = import.meta.env.VITE_GITHUB_REPO_NAME || ''
 const GRAPHQL_URL = 'https://api.github.com/graphql'
 const WORKER_URL = import.meta.env.VITE_WORKER_URL || ''
 
+function isValidWorkerBaseUrl(value: string): boolean {
+  if (!value) return false
+  try {
+    const u = new URL(value)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 // --- Deduplication layer ---
 const _inflightDiscussions = new Map<string, Promise<any>>()
 
@@ -12,7 +22,7 @@ const _inflightDiscussions = new Map<string, Promise<any>>()
 let _repoMetaPromise: Promise<{ repoId: string; categories: Map<string, string> }> | null = null
 
 async function fetchRepoMeta(): Promise<{ repoId: string; categories: Map<string, string> }> {
-  if (!REPO_OWNER || !REPO_NAME || REPO_OWNER === 'CHANGE_ME' || REPO_NAME === 'CHANGE_ME') {
+  if (!REPO_OWNER || !REPO_NAME) {
     console.warn('[GQL] missing VITE_GITHUB_REPO_OWNER / VITE_GITHUB_REPO_NAME')
     return { repoId: '', categories: new Map() }
   }
@@ -68,7 +78,7 @@ async function fetchViaProxy(
   knownDiscussionId?: string | null,
 ): Promise<{ discussionId: string | null; comments: any[] } | null> {
   try {
-    if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') return null
+    if (!isValidWorkerBaseUrl(WORKER_URL)) return null
     const params = new URLSearchParams({ path: pagePath, category: categoryName })
     if (knownDiscussionId) params.set('id', knownDiscussionId)
 
@@ -98,7 +108,7 @@ export async function purgeWorkerCache(
   reactionDelta?: { subjectId: string; content: string; delta: number },
   knownDiscussionId?: string | null,
 ) {
-  if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') return
+  if (!isValidWorkerBaseUrl(WORKER_URL)) return
   const params = new URLSearchParams({ path: pagePath, category: categoryName })
   if (userOnly) params.set('user_only', '1')
   if (reactionDelta) {
