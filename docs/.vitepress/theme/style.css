@@ -1,0 +1,87 @@
+/* ===== Reader notes ===== */
+
+.reader-anno {
+  position: relative;
+  text-decoration: underline wavy;
+  text-decoration-color: var(--vp-c-warning-1);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.reader-anno:hover {
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.reader-anno-overlap {
+  background: rgba(234, 179, 8, 0.08);
+  text-decoration-thickness: 2px;
+}
+
+.reader-anno-overlap:hover {
+  background: rgba(234, 179, 8, 0.22);
+}
+
+/* 波浪线末尾 TG 风格气泡（线框） */
+.anno-inline-bubble {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  margin-right: 3px;
+  vertical-align: middle;
+  text-decoration: none;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.anno-inline-bubble svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--vp-c-warning-1);
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.anno-inline-bubble .anno-count {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--vp-c-warning-1);
+  opacity: 0.55;
+  line-height: 1;
+  transition: opacity 0.2s;
+}
+
+.reader-anno:hover .anno-inline-bubble svg {
+  opacity: 0.9;
+}
+
+.reader-anno:hover .anno-inline-bubble .anno-count {
+  opacity: 1;
+}
+
+/* ===== Nav bar extras ===== */
+
+.VPNavBarExtra,
+.VPNavBar .content-body {
+  gap: 8px;
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 768px) {
+  /* No-op: reserved for small-screen tweaks */
+}

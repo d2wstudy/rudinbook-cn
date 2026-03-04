@@ -1,0 +1,214 @@
+import { useAuth } from './useAuth'
+
+const REPO_OWNER = import.meta.env.VITE_GITHUB_REPO_OWNER || ''
+const REPO_NAME = import.meta.env.VITE_GITHUB_REPO_NAME || ''
+const GRAPHQL_URL = 'https://api.github.com/graphql'
+const WORKER_URL = import.meta.env.VITE_WORKER_URL || ''
+
+// --- Deduplication layer ---
+const _inflightDiscussions = new Map<string, Promise<any>>()
+
+// Shared repo metadata cache (Promise-based to deduplicate concurrent calls)
+let _repoMetaPromise: Promise<{ repoId: string; categories: Map<string, string> }> | null = null
+
+async function fetchRepoMeta(): Promise<{ repoId: string; categories: Map<string, string> }> {
+  if (!REPO_OWNER || !REPO_NAME || REPO_OWNER === 'CHANGE_ME' || REPO_NAME === 'CHANGE_ME') {
+    console.warn('[GQL] missing VITE_GITHUB_REPO_OWNER / VITE_GITHUB_REPO_NAME')
+    return { repoId: '', categories: new Map() }
+  }
+  const data = await gql(`query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      id
+      discussionCategories(first: 20) { nodes { id name } }
+    }
+  }`, { owner: REPO_OWNER, name: REPO_NAME })
+  const categories = new Map<string, string>()
+  for (const c of data?.repository?.discussionCategories?.nodes || []) {
+    categories.set(c.name, c.id)
+  }
+  return { repoId: data?.repository?.id, categories }
+}
+
+function getRepoMeta() {
+  if (!_repoMetaPromise) _repoMetaPromise = fetchRepoMeta()
+  return _repoMetaPromise
+}
+
+export async function getCategoryId(categoryName: string): Promise<string | null> {
+  const { token } = useAuth()
+  if (!token.value) return null
+  const { categories } = await getRepoMeta()
+  return categories.get(categoryName) || null
+}
+
+/** Find a discussion by title in a category AND fetch its comments.
+ *  All requests go through Worker proxy (shared cache across users).
+ *  Authenticated users pass their token; unauthenticated fall back to PAT. */
+export async function findDiscussionWithComments(
+  pagePath: string,
+  categoryName: string,
+  knownDiscussionId?: string | null,
+): Promise<{ discussionId: string | null; comments: any[] } | null> {
+  const key = `${categoryName}::${pagePath}`
+
+  // Deduplicate concurrent in-flight requests for the same category+page
+  const inflight = _inflightDiscussions.get(key)
+  if (inflight) return inflight
+
+  const promise = fetchViaProxy(pagePath, categoryName, knownDiscussionId)
+  _inflightDiscussions.set(key, promise)
+  promise.finally(() => _inflightDiscussions.delete(key))
+  return promise
+}
+
+/** Fetch discussions via Worker proxy (shared cache, uses user token if available) */
+async function fetchViaProxy(
+  pagePath: string,
+  categoryName: string,
+  knownDiscussionId?: string | null,
+): Promise<{ discussionId: string | null; comments: any[] } | null> {
+  try {
+    if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') return null
+    const params = new URLSearchParams({ path: pagePath, category: categoryName })
+    if (knownDiscussionId) params.set('id', knownDiscussionId)
+
+    const headers: Record<string, string> = {}
+    const { token } = useAuth()
+    if (token.value) {
+      headers['Authorization'] = `Bearer ${token.value}`
+    }
+
+    const resp = await fetch(`${WORKER_URL}/api/discussions?${params}`, { headers })
+    if (!resp.ok) return null
+    return await resp.json()
+  } catch {
+    console.warn('[GQL] Worker proxy request failed')
+    return null
+  }
+}
+
+/** Purge Worker cache for a specific page + category (call after write operations).
+ *  Sends user token so Worker can also purge per-user reaction cache.
+ *  Pass userOnly=true for reaction toggles (skip shared cache purge).
+ *  Pass reactionDelta to update shared cache totalCount in-place. */
+export async function purgeWorkerCache(
+  pagePath: string,
+  categoryName: string,
+  userOnly = false,
+  reactionDelta?: { subjectId: string; content: string; delta: number },
+  knownDiscussionId?: string | null,
+) {
+  if (!WORKER_URL || WORKER_URL === 'CHANGE_ME') return
+  const params = new URLSearchParams({ path: pagePath, category: categoryName })
+  if (userOnly) params.set('user_only', '1')
+  if (reactionDelta) {
+    params.set('subject_id', reactionDelta.subjectId)
+    params.set('reaction', reactionDelta.content)
+    params.set('delta', String(reactionDelta.delta))
+  }
+  if (knownDiscussionId) params.set('id', knownDiscussionId)
+  const headers: Record<string, string> = {}
+  const { token } = useAuth()
+  if (!token.value) return
+  headers['Authorization'] = `Bearer ${token.value}`
+  try {
+    await fetch(`${WORKER_URL}/api/cache/purge?${params}`, { method: 'POST', headers })
+  } catch { /* ignore network errors */ }
+}
+
+/** Create a new discussion in a category */
+export async function createDiscussion(pagePath: string, categoryName: string, bodyText: string): Promise<string | null> {
+  const { token } = useAuth()
+  if (!token.value) return null
+  const { repoId, categories } = await getRepoMeta()
+  const categoryId = categories.get(categoryName)
+  if (!repoId || !categoryId) return null
+
+  const result = await gql(`mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+    createDiscussion(input: { repositoryId: $repoId, categoryId: $categoryId, title: $title, body: $body }) {
+      discussion { id }
+    }
+  }`, { repoId, categoryId, title: pagePath, body: bodyText })
+  return result?.createDiscussion?.discussion?.id || null
+}
+
+/** Add a comment to a discussion — returns the new comment data */
+export async function addDiscussionComment(discussionId: string, body: string) {
+  const data = await gql(`mutation($discussionId: ID!, $body: String!) {
+    addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+      comment {
+        id body createdAt
+        author { login avatarUrl }
+        reactionGroups { content viewerHasReacted reactors { totalCount } }
+      }
+    }
+  }`, { discussionId, body })
+  return data?.addDiscussionComment?.comment || null
+}
+
+/** Add a reaction to a subject (comment or reply) */
+export async function addReaction(subjectId: string, content: string) {
+  return gql(`mutation($subjectId: ID!, $content: ReactionContent!) {
+    addReaction(input: { subjectId: $subjectId, content: $content }) {
+      reaction { content }
+    }
+  }`, { subjectId, content })
+}
+
+/** Remove a reaction from a subject */
+export async function removeReaction(subjectId: string, content: string) {
+  return gql(`mutation($subjectId: ID!, $content: ReactionContent!) {
+    removeReaction(input: { subjectId: $subjectId, content: $content }) {
+      reaction { content }
+    }
+  }`, { subjectId, content })
+}
+
+/** Add a reply to a discussion comment — returns the new reply data */
+export async function addDiscussionReply(discussionId: string, replyToId: string, body: string) {
+  const data = await gql(`mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {
+    addDiscussionComment(input: { discussionId: $discussionId, replyToId: $replyToId, body: $body }) {
+      comment {
+        id body createdAt
+        author { login avatarUrl }
+        reactionGroups { content viewerHasReacted reactors { totalCount } }
+      }
+    }
+  }`, { discussionId, replyToId, body })
+  return data?.addDiscussionComment?.comment || null
+}
+
+/** Shared GraphQL helper — used for mutations only (reads go through Worker proxy) */
+export async function gql(query: string, variables: Record<string, any>) {
+  const { token } = useAuth()
+  const t = token.value
+  if (!t) return null
+
+  // Dev: inject rateLimit field to monitor API point consumption (queries only, not mutations)
+  const isMutation = query.trimStart().startsWith('mutation')
+  const actualQuery = import.meta.env.DEV && !isMutation
+    ? query.replace(/\{/, '{ rateLimit { cost remaining resetAt }')
+    : query
+
+  const resp = await fetch(GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${t}`,
+    },
+    body: JSON.stringify({ query: actualQuery, variables }),
+  })
+  if (resp.status === 403 || resp.status === 429) {
+    console.warn('[GQL] GitHub API rate limit exceeded')
+    return null
+  }
+  const json = await resp.json()
+  if (json.errors) {
+    console.warn('[GQL] GraphQL errors:', json.errors)
+  }
+  if (import.meta.env.DEV && json.data?.rateLimit) {
+    const rl = json.data.rateLimit
+    console.log(`[GQL] cost=${rl.cost} remaining=${rl.remaining} reset=${rl.resetAt}`)
+  }
+  return json.data
+}
