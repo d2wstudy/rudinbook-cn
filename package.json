@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sync": "node scripts/sync-chapters.mjs",
+    "sync": "node dev_archive/scripts/sync-chapters.mjs",
     "dev": "npm run sync && vitepress dev docs --port 15689",
     "build": "npm run sync && vitepress build docs",
     "preview": "vitepress preview docs"

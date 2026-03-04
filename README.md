@@ -19,21 +19,17 @@ npm run build
 
 产物目录：`docs/.vitepress/dist/`
 
+## 交互功能（读者笔记 / 章节讨论）
 
-## 交互功能配置（占位符待替换）
+本项目的交互功能基于 **GitHub Discussions**，并通过 **Cloudflare Worker** 完成 OAuth 交换与 Discussions 读取缓存代理。
 
-站点侧需要配置（`docs/.env.development` / `docs/.env.production`）：
+完整的从零配置步骤（包含需要运行的命令、需要修改的文件、常见问题排查）见：
 
-- `VITE_GITHUB_CLIENT_ID`
-- `VITE_WORKER_URL`
-- `VITE_GITHUB_REPO_OWNER`
-- `VITE_GITHUB_REPO_NAME`
+- `WORKER.md`
 
-Worker（`worker/`）需要：
+快速检查清单：
 
-- 修改 `worker/wrangler.toml` 的 `[vars]`：`REPO_OWNER` / `REPO_NAME`
-- 通过 `wrangler secret` 设置：
-  - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
-  - （可选）`GITHUB_CLIENT_ID_DEV` / `GITHUB_CLIENT_SECRET_DEV`
-  - `GITHUB_PAT`（用于匿名读取 Discussions）
-
+- GitHub 仓库已开启 Discussions，且存在分类：`Notes` / `Announcements`
+- `worker/wrangler.toml` 已填写目标仓库：`REPO_OWNER` / `REPO_NAME`
+- Worker secrets 已配置：`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_PAT`（可选但强烈建议）
+- 站点侧 `.env` 已配置：`VITE_GITHUB_CLIENT_ID` / `VITE_WORKER_URL` / `VITE_GITHUB_REPO_OWNER` / `VITE_GITHUB_REPO_NAME`

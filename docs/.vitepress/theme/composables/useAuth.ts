@@ -28,15 +28,32 @@ const user = ref<GitHubUser | null>(_savedUser ? (() => { try { return JSON.pars
 const loading = ref(false)
 let revokePromise: Promise<void> | null = null
 
+function getOAuthCallbackUrl(): string {
+  const base = import.meta.env.BASE_URL || '/'
+  const path = base.startsWith('/') ? base : `/${base}`
+  const normalized = path.endsWith('/') ? path : `${path}/`
+  return window.location.origin + normalized
+}
+
+function isSafeReturnTo(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !path.includes('\\') && !path.includes('\n')
+}
+
 export function useAuth() {
   function init() {
     // Check for OAuth callback code in URL
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
+    const returnTo = params.get('state')
     if (code) {
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname + window.location.hash)
-      exchangeCode(code)
+      exchangeCode(code).then(() => {
+        if (!token.value) return
+        if (returnTo && isSafeReturnTo(returnTo) && returnTo !== window.location.pathname + window.location.search + window.location.hash) {
+          window.location.replace(returnTo)
+        }
+      })
       return
     }
 
@@ -64,11 +81,14 @@ export function useAuth() {
     if (revokePromise) {
       await revokePromise
     }
-    // Use current page as redirect_uri so GitHub calls back here directly
-    // (GitHub allows any sub-path under the registered callback URL)
-    const callbackUrl = window.location.origin + window.location.pathname
-    const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=public_repo&redirect_uri=${encodeURIComponent(callbackUrl)}`
-    window.location.href = url
+    const callbackUrl = getOAuthCallbackUrl()
+    const returnTo = window.location.pathname + window.location.search + window.location.hash
+    const u = new URL('https://github.com/login/oauth/authorize')
+    u.searchParams.set('client_id', GITHUB_CLIENT_ID)
+    u.searchParams.set('scope', 'public_repo')
+    u.searchParams.set('redirect_uri', callbackUrl)
+    u.searchParams.set('state', returnTo)
+    window.location.href = u.toString()
   }
 
   function logout() {
@@ -96,8 +116,8 @@ export function useAuth() {
       return
     }
     loading.value = true
-    // Must match the redirect_uri sent in login() — which is the current page
-    const redirect_uri = window.location.origin + window.location.pathname
+    // Must match the redirect_uri sent in login()
+    const redirect_uri = getOAuthCallbackUrl()
     try {
       const resp = await fetch(`${WORKER_URL}/api/auth`, {
         method: 'POST',
