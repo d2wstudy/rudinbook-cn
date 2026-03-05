@@ -25,6 +25,7 @@ npm run build
 
 - 配置位置：`docs/.vitepress/theme/style.css`
 - 推荐安装（可选）：思源宋体（Source Han Serif / Noto Serif CJK），未安装时会自动回退到系统宋体（如 SimSun）
+- 可选（外链 WebFont）：设置 `VITEPRESS_GOOGLE_FONTS=1`（可放在 `docs/.env.development` / `docs/.env.production` 或 CI env）会在页面 `<head>` 注入 `Noto Serif SC`（unicode-range 动态切片按需加载）；如需替换镜像/自建 CSS，设置 `VITEPRESS_GOOGLE_FONTS_CSS_URL=...`；无法加载时会自动回退到本地字体
 
 ## 交互功能（读者笔记 / 章节讨论）
 

@@ -5,8 +5,8 @@
     Prefer serif for long-form Chinese reading, with widely-available fallbacks.
     If you install 思源宋体/Source Han Serif (or Noto Serif CJK), it will be picked up automatically.
   */
-  --book-font-serif: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', STSong, SimSun,
-    'Noto Serif', 'Times New Roman', serif;
+  --book-font-serif: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Noto Serif SC', 'Songti SC',
+    STSong, SimSun, 'Noto Serif', 'Times New Roman', serif;
   --book-font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
   --book-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
